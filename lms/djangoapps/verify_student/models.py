@@ -10,6 +10,7 @@ photo verification process as generic as possible.
 """
 
 import base64
+import binascii
 import codecs
 import functools
 import json
@@ -37,14 +38,21 @@ from opaque_keys.edx.django.models import CourseKeyField
 
 from lms.djangoapps.verify_student.ssencrypt import (
     encrypt_and_encode,
+    decode_and_decrypt,
     generate_signed_message,
     random_aes_key,
-    rsa_encrypt
+    rsa_encrypt,
+    rsa_decrypt
 )
 from openedx.core.djangoapps.signals.signals import LEARNER_NOW_VERIFIED
 from openedx.core.storage import get_storage
 
-from .utils import auto_verify_for_testing_enabled, earliest_allowed_verification_date, submit_request_to_ss
+from .utils import (
+    auto_verify_for_testing_enabled,
+    earliest_allowed_verification_date,
+    mock_S3_storage_for_testing_enabled,
+    submit_request_to_ss
+)
 
 log = logging.getLogger(__name__)
 
@@ -637,6 +645,14 @@ class SoftwareSecurePhotoVerification(PhotoVerification):
     # encode that. The result is saved here. Actual expected length is 344.
     photo_id_key = models.TextField(max_length=1024)
 
+    # This is a model field only used for testing, and is used to mock saving and
+    # reading from S3.
+    encoded_face_data = models.BinaryField()
+
+    # This is a model field only used for testing, and is used to mock saving and
+    # reading from S3.
+    encoded_id_data = models.BinaryField()
+
     IMAGE_LINK_DURATION = 5 * 60 * 60 * 24  # 5 days in seconds
     copy_id_photo_from = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE)
 
@@ -691,6 +707,21 @@ class SoftwareSecurePhotoVerification(PhotoVerification):
         except cls.DoesNotExist:
             return None
 
+    def _save_image_to_storage(self, path, img_data):
+        """
+        Given a path and data, save to S3
+        Separated out for ease of mocking in testing
+        """
+        if mock_S3_storage_for_testing_enabled():
+            if 'face' in path:
+                self.encoded_face_data = img_data
+            else:
+                self.encoded_id_data = img_data
+            return
+
+        buff = ContentFile(img_data)
+        self._storage.save(path, buff)
+
     @status_before_must_be("created")
     def upload_face_image(self, img_data):
         """
@@ -716,9 +747,10 @@ class SoftwareSecurePhotoVerification(PhotoVerification):
         else:
             aes_key = aes_key_str.decode("hex")
 
+        encrypted_data = encrypt_and_encode(img_data, aes_key)
+
         path = self._get_path("face")
-        buff = ContentFile(encrypt_and_encode(img_data, aes_key))
-        self._storage.save(path, buff)
+        self._save_image_to_storage(path, encrypted_data)
 
     @status_before_must_be("created")
     def upload_photo_id_image(self, img_data):
@@ -744,12 +776,13 @@ class SoftwareSecurePhotoVerification(PhotoVerification):
 
         aes_key = random_aes_key()
         rsa_key_str = settings.VERIFY_STUDENT["SOFTWARE_SECURE"]["RSA_PUBLIC_KEY"]
+
         rsa_encrypted_aes_key = rsa_encrypt(aes_key, rsa_key_str)
 
         # Save this to the storage backend
         path = self._get_path("photo_id")
-        buff = ContentFile(encrypt_and_encode(img_data, aes_key))
-        self._storage.save(path, buff)
+        encrypted_data = encrypt_and_encode(img_data, aes_key)
+        self._save_image_to_storage(path, encrypted_data)
 
         # Update our record fields
         if six.PY3:
@@ -758,6 +791,56 @@ class SoftwareSecurePhotoVerification(PhotoVerification):
             self.photo_id_key = rsa_encrypted_aes_key.encode('base64')
 
         self.save()
+
+    def _get_image_from_storage(self, path):
+        """
+        Given a path, read data from storage and return
+        Separated for ease of mocking in testing
+        """
+        if mock_S3_storage_for_testing_enabled():
+            if 'face' in path:
+                return self.encoded_face_data
+            else:
+                return self.encoded_id_data
+
+        with self._storage.open(path, mode='rb') as img_file:
+            byte_img_data = img_file.read()
+        return byte_img_data
+
+    @status_before_must_be("must_retry", "submitted", "approved", "denied")
+    def download_face_image(self):
+        if not settings.VERIFY_STUDENT["SOFTWARE_SECURE"].get("RSA_PRIVATE_KEY", None):
+            return None
+        path = self._get_path("face")
+        byte_img_data = self._get_image_from_storage(path)
+
+        aes_key_str = settings.VERIFY_STUDENT["SOFTWARE_SECURE"]["FACE_IMAGE_AES_KEY"]
+
+        if six.PY3:
+            aes_key = codecs.decode(aes_key_str, "hex")
+        else:
+            aes_key = aes_key_str.decode("hex")
+
+        img_bytes = decode_and_decrypt(byte_img_data, aes_key)
+        return img_bytes
+
+    @status_before_must_be("must_retry", "submitted", "approved", "denied")
+    def download_photo_id_image(self):
+        if not settings.VERIFY_STUDENT["SOFTWARE_SECURE"].get("RSA_PRIVATE_KEY", None):
+            return None
+
+        path = self._get_path("photo_id")
+        byte_img_data = self._get_image_from_storage(path)
+
+        #decode rsa encrypted aes key from base64
+        rsa_encrypted_aes_key = base64.urlsafe_b64decode(self.photo_id_key)
+
+        #decrypt aes key using rsa private key
+        rsa_private_key_str = settings.VERIFY_STUDENT["SOFTWARE_SECURE"]["RSA_PRIVATE_KEY"]
+        decrypted_aes_key = rsa_decrypt(rsa_encrypted_aes_key, rsa_private_key_str)
+        img_bytes = decode_and_decrypt(byte_img_data, decrypted_aes_key)
+        return img_bytes
+
 
     @status_before_must_be("must_retry", "ready", "submitted")
     def submit(self, copy_id_photo_from=None):

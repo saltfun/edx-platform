@@ -153,6 +153,12 @@ def auto_verify_for_testing_enabled(override=None):
         return override
     return settings.FEATURES.get('AUTOMATIC_VERIFY_STUDENT_IDENTITY_FOR_TESTING')
 
+def mock_S3_storage_for_testing_enabled(override=None):
+    """
+    If MOCK_S3_STORAGE_FOR_TESTING is True, we want to skip saving anything to S3
+    """
+    return settings.FEATURES.get('MOCK_S3_STORAGE_FOR_TESTING')
+
 
 def can_verify_now(verification_status, expiration_datetime):
     """

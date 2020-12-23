@@ -6,6 +6,7 @@ Tests of verify_student views.
 from datetime import timedelta
 from uuid import uuid4
 
+import base64
 import ddt
 import httpretty
 import mock
@@ -31,7 +32,7 @@ from lms.djangoapps.commerce.models import CommerceConfiguration
 from lms.djangoapps.commerce.tests import TEST_API_URL, TEST_PAYMENT_DATA, TEST_PUBLIC_URL_ROOT
 from lms.djangoapps.commerce.tests.mocks import mock_payment_processors
 from lms.djangoapps.commerce.utils import EcommerceService
-from lms.djangoapps.verify_student.models import SoftwareSecurePhotoVerification, VerificationDeadline
+from lms.djangoapps.verify_student.models import SoftwareSecurePhotoVerification, VerificationDeadline, VerificationException
 from lms.djangoapps.verify_student.services import IDVerificationService
 from lms.djangoapps.verify_student.views import PayAndVerifyView, checkout_with_ecommerce_service, render_to_response
 from openedx.core.djangoapps.embargo.test_utils import restrict_course
@@ -54,6 +55,43 @@ def mock_render_to_response(*args, **kwargs):
 render_mock = Mock(side_effect=mock_render_to_response)
 
 PAYMENT_DATA_KEYS = {'payment_processor_name', 'payment_page_url', 'payment_form_data'}
+
+RSA_PUBLIC_KEY = b"""-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1hLVjP0oV0Uy/+jQ+Upz
+c+eYc4Pyflb/WpfgYATggkoQdnsdplmvPtQr85+utgqKPxOh+PvYGW8QNUzjLIu4
+5/GlmvBa82i1jRMgEAxGI95bz7j9DtH+7mnj+06zR5xHwT49jK0zMs5MjMaz5WRq
+BUNkz7dxWzDrYJZQx230sPp6upy1Y5H5O8SnJVdghsh8sNciS4Bo4ZONQ3giBwxz
+h5svjspz1MIsOoShjbAdfG+4VX7sVwYlw2rnQeRsMH5/xpnNeqtScyOMoz0N9UDG
+dtRMNGa2MihAg7zh7/zckbUrtf+o5wQtlCJL1Kdj4EjshqYvCxzWnSM+MaYAjb3M
+EQIDAQAB
+-----END PUBLIC KEY-----"""
+RSA_PRIVATE_KEY = b"""-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEA1hLVjP0oV0Uy/+jQ+Upzc+eYc4Pyflb/WpfgYATggkoQdnsd
+plmvPtQr85+utgqKPxOh+PvYGW8QNUzjLIu45/GlmvBa82i1jRMgEAxGI95bz7j9
+DtH+7mnj+06zR5xHwT49jK0zMs5MjMaz5WRqBUNkz7dxWzDrYJZQx230sPp6upy1
+Y5H5O8SnJVdghsh8sNciS4Bo4ZONQ3giBwxzh5svjspz1MIsOoShjbAdfG+4VX7s
+VwYlw2rnQeRsMH5/xpnNeqtScyOMoz0N9UDGdtRMNGa2MihAg7zh7/zckbUrtf+o
+5wQtlCJL1Kdj4EjshqYvCxzWnSM+MaYAjb3MEQIDAQABAoIBAQCviuA87fdfoOoS
+OerrEacc20QDLaby/QoGUtZ2RmmHzY40af7FQ3PWFIw6Ca5trrTwxnuivXnWWWG0
+I2mCRM0Kvfgr1n7ubOW7WnyHTFlT3mnxK2Ov/HmNLZ36nO2cgkXA6/Xy3rBGMC9L
+nUE1kSLzT/Fh965ntfS9zmVNNBhb6no0rVkGx5nK3vTI6kUmaa0m+E7KL/HweO4c
+JodhN8CX4gpxSrkuwJ7IHEPYspqc0jInMYKLmD3d2g3BiOctjzFmaj3lV5AUlujW
+z7/LVe5WAEaaxjwaMvwqrJLv9ogxWU3etJf22+Yy7r5gbPtqpqJrCZ5+WpGnUHws
+3mMGP2QBAoGBAOc3pzLFgGUREVPSFQlJ06QFtfKYqg9fFHJCgWu/2B2aVZc2aO/t
+Zhuoz+AgOdzsw+CWv7K0FH9sUkffk2VKPzwwwufLK3avD9gI0bhmBAYvdhS6A3nO
+YM3W+lvmaJtFL00K6kdd+CzgRnBS9cZ70WbcbtqjdXI6+mV1WdGUTLhBAoGBAO0E
+xhD4z+GjubSgfHYEZPgRJPqyUIfDH+5UmFGpr6zlvNN/depaGxsbhW8t/V6xkxsG
+MCgic7GLMihEiUMx1+/snVs5bBUx7OT9API0d+vStHCFlTTe6aTdmiduFD4PbDsq
+6E4DElVRqZhpIYusdDh7Z3fO2hm5ad4FfMlx65/RAoGAPYEfV7ETs06z9kEG2X6q
+7pGaUZrsecRH8xDfzmKswUshg2S0y0WyCJ+CFFNeMPdGL4LKIWYnobGVvYqqcaIr
+af5qijAQMrTkmQnXh56TaXXMijzk2czdEUQjOrjykIL5zxudMDi94GoUMqLOv+qF
+zD/MuRoMDsPDgaOSrd4t/kECgYEAzwBNT8NOIz3P0Z4cNSJPYIvwpPaY+IkE2SyO
+vzuYj0Mx7/Ew9ZTueXVGyzv6PfqOhJqZ8mNscZIlIyAAVWwxsHwRTfvPlo882xzP
+97i1R4OFTYSNNFi+69sSZ/9utGjZ2K73pjJuj487tD2VK5xZAH9edTd2KeNSP7LB
+MlpJNBECgYAmIswPdldm+G8SJd5j9O2fcDVTURjKAoSXCv2j4gEZzzfudpLWNHYu
+l8N6+LEIVTMAytPk+/bImHvGHKZkCz5rEMSuYJWOmqKI92rUtI6fz5DUb3XSbrwT
+3W+sdGFUK3GH1NAX71VxbAlFVLUetcMwai1+wXmGkRw6A7YezVFnhw==
+-----END RSA PRIVATE KEY-----"""
 
 
 def _mock_payment_processors():
@@ -1805,7 +1843,7 @@ class TestReverifyView(TestVerificationBase):
 )
 class TestPhotoURLView(ModuleStoreTestCase, TestVerificationBase):
     """
-    Tests for the results_callback view.
+    Tests for the photo url view.
     """
 
     def setUp(self):
@@ -1853,3 +1891,140 @@ class TestPhotoURLView(ModuleStoreTestCase, TestVerificationBase):
         url = reverse('verification_photo_urls', kwargs={'receipt_id': six.text_type(self.receipt_id)})
         response = self.client.get(url)
         self.assertEqual(response.status_code, 403)
+
+
+@patch.dict(settings.FEATURES, {'AUTOMATIC_VERIFY_STUDENT_IDENTITY_FOR_TESTING': False, 'MOCK_S3_STORAGE_FOR_TESTING': True})
+@override_settings(
+    VERIFY_STUDENT={
+        "SOFTWARE_SECURE": {
+            "API_URL": "https://verify.example.com/submit/",
+            "API_ACCESS_KEY": "dcf291b5572942f99adaab4c2090c006",
+            "API_SECRET_KEY": "c392efdcc0354c5f922dc39844ec0dc7",
+            "FACE_IMAGE_AES_KEY": b'32fe72aaf2abb44de9e161131b5435c8d37cbdb6f5df242ae860b283115f2dae',
+            "RSA_PUBLIC_KEY": RSA_PUBLIC_KEY,
+            "RSA_PRIVATE_KEY": RSA_PRIVATE_KEY,
+            "AWS_ACCESS_KEY": "c987c7efe35c403caa821f7328febfa1",
+            "AWS_SECRET_KEY": "fc595fc657c04437bb23495d8fe64881",
+            "S3_BUCKET": "test-idv",
+            "CERT_VERIFICATION_PATH": False,
+        },
+        "DAYS_GOOD_FOR": 10,
+        "STORAGE_CLASS": 'storages.backends.s3boto.S3BotoStorage',
+        "STORAGE_KWARGS": {
+            'bucket': 'test-idv',
+        },
+    }
+)
+@ddt.ddt
+class TestDecodeImageViews(MockS3BotoMixin, TestVerificationBase):
+    """
+    Test for both face and photo id image decoding views
+    """
+
+    IMAGE_DATA = "abcd,1234"
+
+    def setUp(self):
+        super(TestDecodeImageViews, self).setUp()
+
+        self.user = AdminFactory()
+        login_success = self.client.login(username=self.user.username, password='test')
+        self.assertTrue(login_success)
+
+
+    def _mock_submit_images(self):
+        """
+            Mocks submitting images for IDV and saving to S3
+
+            Returns:
+                Tuple two ContentFile objects
+
+        """
+        httpretty.register_uri(
+            httpretty.POST, settings.VERIFY_STUDENT["SOFTWARE_SECURE"]["API_URL"],
+            status=200, body={},
+            content_type='application/json'
+        )
+
+        url = reverse("verify_student_submit_photos")
+        params = {
+            'face_image': self.IMAGE_DATA,
+            'photo_id_image': self.IMAGE_DATA,
+        }
+
+        with self.immediate_on_commit():
+            response = self.client.post(url, params)
+        self.assertEqual(response.status_code, 200)
+
+        return response
+
+
+    def _decode_image(self, receipt_id, type):
+        url_name = 'verification_decrypt_face_image'
+        if type == 'photo_id':
+            url_name = 'verification_decrypt_photo_id_image'
+        url = reverse(url_name, kwargs={'receipt_id': six.text_type(receipt_id)})
+
+        response = self.client.get(url)
+
+        return response
+
+    @ddt.data("face", "photo_id")
+    def test_download_image_response(self, type):
+
+        # upload 'images'
+        self._mock_submit_images()
+        attempt = SoftwareSecurePhotoVerification.objects.get(user=self.user)
+        # check to make sure it submitted correctly
+        receipt_id = attempt.receipt_id
+
+        #mock downloading and decrypting images
+        response = self._decode_image(receipt_id, type)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, base64.b64decode(self.IMAGE_DATA.split(",")[1]))
+
+    @ddt.data("face", "photo_id")
+    def test_403_for_non_staff(self, type):
+        self.user = UserFactory()
+        login_success = self.client.login(username=self.user.username, password='test')
+        self.assertTrue(login_success)
+
+        self._mock_submit_images()
+        attempt = SoftwareSecurePhotoVerification.objects.get(user=self.user)
+        # check to make sure it submitted correctly
+        receipt_id = attempt.receipt_id
+
+        # mock downloading and decrypting images
+        response = self._decode_image(receipt_id, type)
+        self.assertEqual(response.status_code, 403)
+
+    @override_settings(
+        VERIFY_STUDENT={
+            "SOFTWARE_SECURE": {
+                "API_URL": "https://verify.example.com/submit/",
+                "API_ACCESS_KEY": "dcf291b5572942f99adaab4c2090c006",
+                "API_SECRET_KEY": "c392efdcc0354c5f922dc39844ec0dc7",
+                "FACE_IMAGE_AES_KEY": b'32fe72aaf2abb44de9e161131b5435c8d37cbdb6f5df242ae860b283115f2dae',
+                "RSA_PUBLIC_KEY": RSA_PUBLIC_KEY,
+                "AWS_ACCESS_KEY": "c987c7efe35c403caa821f7328febfa1",
+                "AWS_SECRET_KEY": "fc595fc657c04437bb23495d8fe64881",
+                "S3_BUCKET": "test-idv",
+                "CERT_VERIFICATION_PATH": False,
+            },
+            "DAYS_GOOD_FOR": 10,
+        }
+    )
+    @ddt.data("face", "photo_id")
+    def test_403_for_non_staging(self, type):
+        self._mock_submit_images()
+        attempt = SoftwareSecurePhotoVerification.objects.get(user=self.user)
+        # check to make sure it submitted correctly
+        receipt_id = attempt.receipt_id
+
+        # mock downloading and decrypting images
+        response = self._decode_image(receipt_id, type)
+        self.assertEqual(response.status_code, 403)
+
+    @ddt.data("face", "photo_id")
+    def test_404_if_invalid_receipt_id(self, type):
+        response = self._decode_image('00000000-0000-0000-0000-000000000000', type)
+        self.assertEqual(response.status_code, 404)
