@@ -10,7 +10,6 @@ photo verification process as generic as possible.
 """
 
 import base64
-import binascii
 import codecs
 import functools
 import json
@@ -776,7 +775,6 @@ class SoftwareSecurePhotoVerification(PhotoVerification):
 
         aes_key = random_aes_key()
         rsa_key_str = settings.VERIFY_STUDENT["SOFTWARE_SECURE"]["RSA_PUBLIC_KEY"]
-
         rsa_encrypted_aes_key = rsa_encrypt(aes_key, rsa_key_str)
 
         # Save this to the storage backend

@@ -1297,14 +1297,7 @@ class TestSubmitPhotosForVerification(MockS3BotoMixin, TestVerificationBase):
             "API_ACCESS_KEY": "dcf291b5572942f99adaab4c2090c006",
             "API_SECRET_KEY": "c392efdcc0354c5f922dc39844ec0dc7",
             "FACE_IMAGE_AES_KEY": "f82400259e3b4f88821cd89838758292",
-            "RSA_PUBLIC_KEY": (
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDkgtz3fQdiXshy/RfOHkoHlhx/"
-                "SSPZ+nNyE9JZXtwhlzsXjnu+e9GOuJzgh4kUqo73ePIG5FxVU+mnacvufq2cu1SOx"
-                "lRYGyBK7qDf9Ym67I5gmmcNhbzdKcluAuDCPmQ4ecKpICQQldrDQ9HWDxwjbbcqpVB"
-                "PYWkE1KrtypGThmcehLmabf6SPq1CTAGlXsHgUtbWCwV6mqR8yScV0nRLln0djLDm9d"
-                "L8tIVFFVpAfBaYYh2Cm5EExQZjxyfjWd8P5H+8/l0pmK2jP7Hc0wuXJemIZbsdm+DSD"
-                "FhCGY3AILGkMwr068dGRxfBtBy/U9U5W+nStvkDdMrSgQezS5+V test@example.com"
-            ),
+            "RSA_PUBLIC_KEY": RSA_PUBLIC_KEY,
             "AWS_ACCESS_KEY": "c987c7efe35c403caa821f7328febfa1",
             "AWS_SECRET_KEY": "fc595fc657c04437bb23495d8fe64881",
             "S3_BUCKET": "test.example.com",
@@ -1822,14 +1815,7 @@ class TestReverifyView(TestVerificationBase):
             "API_ACCESS_KEY": "dcf291b5572942f99adaab4c2090c006",
             "API_SECRET_KEY": "c392efdcc0354c5f922dc39844ec0dc7",
             "FACE_IMAGE_AES_KEY": "f82400259e3b4f88821cd89838758292",
-            "RSA_PUBLIC_KEY": (
-                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDkgtz3fQdiXshy/RfOHkoHlhx/"
-                "SSPZ+nNyE9JZXtwhlzsXjnu+e9GOuJzgh4kUqo73ePIG5FxVU+mnacvufq2cu1SOx"
-                "lRYGyBK7qDf9Ym67I5gmmcNhbzdKcluAuDCPmQ4ecKpICQQldrDQ9HWDxwjbbcqpVB"
-                "PYWkE1KrtypGThmcehLmabf6SPq1CTAGlXsHgUtbWCwV6mqR8yScV0nRLln0djLDm9d"
-                "L8tIVFFVpAfBaYYh2Cm5EExQZjxyfjWd8P5H+8/l0pmK2jP7Hc0wuXJemIZbsdm+DSD"
-                "FhCGY3AILGkMwr068dGRxfBtBy/U9U5W+nStvkDdMrSgQezS5+V test@example.com"
-            ),
+            "RSA_PUBLIC_KEY": RSA_PUBLIC_KEY,
             "AWS_ACCESS_KEY": "c987c7efe35c403caa821f7328febfa1",
             "AWS_SECRET_KEY": "fc595fc657c04437bb23495d8fe64881",
             "CERT_VERIFICATION_PATH": False,
