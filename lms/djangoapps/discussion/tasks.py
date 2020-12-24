@@ -7,7 +7,6 @@ pertaining to new discussion forum comments.
 import logging
 
 import six
-from celery import task
 from celery_utils.logged_task import LoggedTask
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -29,6 +28,7 @@ from openedx.core.djangoapps.ace_common.message import BaseMessageType
 from openedx.core.djangoapps.ace_common.template_context import get_base_template_context
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from openedx.core.djangoapps.django_comment_common.models import DiscussionsIdMapping
+from openedx.core.lib.celery import APP
 from openedx.core.lib.celery.task_utils import emulate_http_request
 from common.djangoapps.track import segment
 

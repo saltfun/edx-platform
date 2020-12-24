@@ -5,13 +5,13 @@ Module for generating certificate for a user
 
 from logging import getLogger
 
-from celery import task
 from celery_utils.persist_on_failure import LoggedPersistOnFailureTask
 from django.contrib.auth.models import User
 from edx_django_utils.monitoring import set_code_owner_attribute
 from opaque_keys.edx.keys import CourseKey
 
 from lms.djangoapps.verify_student.services import IDVerificationService
+from openedx.core.lib.celery import APP
 
 from .api import generate_user_certificates
 
