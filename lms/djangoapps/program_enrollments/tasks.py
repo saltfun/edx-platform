@@ -4,17 +4,17 @@
 import logging
 from datetime import timedelta
 
-from celery import task
 from celery_utils.logged_task import LoggedTask
 from django.utils import timezone
 from edx_django_utils.monitoring import set_code_owner_attribute
 
 from lms.djangoapps.program_enrollments.models import ProgramCourseEnrollment, ProgramEnrollment
+from openedx.core.lib.celery import APP
 
 log = logging.getLogger(__name__)
 
 
-@task(base=LoggedTask)
+@APP.task(base=LoggedTask)
 @set_code_owner_attribute
 def expire_waiting_enrollments(expiration_days):
     """

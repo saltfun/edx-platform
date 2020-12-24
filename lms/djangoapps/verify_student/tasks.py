@@ -7,7 +7,7 @@ from smtplib import SMTPException
 
 import requests
 import simplejson
-from celery import Task, task
+from celery import Task
 from celery.states import FAILURE
 from django.conf import settings
 from django.core.mail import EmailMessage
@@ -15,6 +15,7 @@ from edx_django_utils.monitoring import set_code_owner_attribute
 
 from common.djangoapps.edxmako.shortcuts import render_to_string
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
+from openedx.core.lib.celery import APP
 
 log = logging.getLogger(__name__)
 
@@ -72,7 +73,7 @@ class BaseSoftwareSecureTask(Task):
             )
 
 
-@task
+@APP.task
 @set_code_owner_attribute
 def send_verification_status_email(context):
     """
@@ -94,7 +95,7 @@ def send_verification_status_email(context):
         log.warning(u"Failure in sending verification status e-mail to %s", dest_addr)
 
 
-@task(
+@APP.task(
     base=BaseSoftwareSecureTask,
     bind=True,
     default_retry_delay=settings.SOFTWARE_SECURE_REQUEST_RETRY_DELAY,

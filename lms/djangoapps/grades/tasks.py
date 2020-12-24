@@ -6,7 +6,6 @@ This module contains tasks for asynchronous execution of grade updates.
 from logging import getLogger
 
 import six
-from celery import task
 from celery_utils.persist_on_failure import LoggedPersistOnFailureTask
 from django.conf import settings
 from django.contrib.auth.models import User
@@ -30,6 +29,7 @@ from common.djangoapps.track.event_transaction_utils import set_event_transactio
 from common.djangoapps.util.date_utils import from_timestamp
 from xmodule.modulestore.django import modulestore
 
+from openedx.core.lib.celery import APP
 from .config.waffle import DISABLE_REGRADE_ON_POLICY_CHANGE, waffle
 from .constants import ScoreDatabaseTableEnum
 from .course_grade_factory import CourseGradeFactory
@@ -52,7 +52,7 @@ RETRY_DELAY_SECONDS = 40
 SUBSECTION_GRADE_TIMEOUT_SECONDS = 300
 
 
-@task(base=LoggedPersistOnFailureTask)
+@APP.task(base=LoggedPersistOnFailureTask)
 @set_code_owner_attribute
 def compute_all_grades_for_course(**kwargs):
     """
@@ -78,7 +78,7 @@ def compute_all_grades_for_course(**kwargs):
             )
 
 
-@task(
+@APP.task(
     bind=True,
     base=LoggedPersistOnFailureTask,
     default_retry_delay=RETRY_DELAY_SECONDS,
@@ -110,7 +110,7 @@ def compute_grades_for_course_v2(self, **kwargs):
         raise self.retry(kwargs=kwargs, exc=exc)
 
 
-@task(base=LoggedPersistOnFailureTask)
+@APP.task(base=LoggedPersistOnFailureTask)
 @set_code_owner_attribute
 def compute_grades_for_course(course_key, offset, batch_size, **kwargs):  # pylint: disable=unused-argument
     """
@@ -132,7 +132,7 @@ def compute_grades_for_course(course_key, offset, batch_size, **kwargs):  # pyli
             raise result.error
 
 
-@task(
+@APP.task(
     bind=True,
     base=LoggedPersistOnFailureTask,
     time_limit=SUBSECTION_GRADE_TIMEOUT_SECONDS,
@@ -173,7 +173,7 @@ def recalculate_course_and_subsection_grades_for_user(self, **kwargs):  # pylint
         )
 
 
-@task(
+@APP.task(
     bind=True,
     base=LoggedPersistOnFailureTask,
     time_limit=SUBSECTION_GRADE_TIMEOUT_SECONDS,

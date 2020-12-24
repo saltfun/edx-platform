@@ -18,7 +18,7 @@ from .api import generate_user_certificates
 logger = getLogger(__name__)
 
 
-@task(base=LoggedPersistOnFailureTask, bind=True, default_retry_delay=30, max_retries=2)
+@APP.task(base=LoggedPersistOnFailureTask, bind=True, default_retry_delay=30, max_retries=2)
 @set_code_owner_attribute
 def generate_certificate(self, **kwargs):
     """

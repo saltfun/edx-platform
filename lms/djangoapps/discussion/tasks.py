@@ -38,7 +38,7 @@ log = logging.getLogger(__name__)
 DEFAULT_LANGUAGE = 'en'
 
 
-@task(base=LoggedTask)
+@APP.task(base=LoggedTask)
 @set_code_owner_attribute
 def update_discussions_map(context):
     """
@@ -61,7 +61,7 @@ class ResponseNotification(BaseMessageType):
     pass
 
 
-@task(base=LoggedTask)
+@APP.task(base=LoggedTask)
 @set_code_owner_attribute
 def send_ace_message(context):
     context['course_id'] = CourseKey.from_string(context['course_id'])
