@@ -5,7 +5,6 @@ Asynchronous tasks related to the Course Blocks sub-application.
 
 import logging
 
-from celery.task import task
 from django.conf import settings
 from edx_django_utils.monitoring import set_code_owner_attribute
 from edxval.api import ValInternalError
@@ -16,6 +15,8 @@ from capa.responsetypes import LoncapaProblemError
 from openedx.core.djangoapps.content.block_structure import api
 from openedx.core.djangoapps.content.block_structure.config import STORAGE_BACKING_FOR_CACHE, waffle
 from xmodule.modulestore.exceptions import ItemNotFoundError
+
+from openedx.core.lib.celery import APP
 
 log = logging.getLogger('edx.celery.task')
 
@@ -28,7 +29,7 @@ def block_structure_task(**kwargs):
     """
     Decorator for block structure tasks.
     """
-    return task(
+    return APP.task(
         default_retry_delay=settings.BLOCK_STRUCTURES_SETTINGS['TASK_DEFAULT_RETRY_DELAY'],
         max_retries=settings.BLOCK_STRUCTURES_SETTINGS['TASK_MAX_RETRIES'],
         bind=True,

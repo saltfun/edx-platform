@@ -3,7 +3,6 @@
 import logging
 
 import six
-from celery import task
 from celery_utils.persist_on_failure import LoggedPersistOnFailureTask
 from django.conf import settings
 from edx_django_utils.monitoring import set_code_owner_attribute
@@ -12,6 +11,8 @@ from six.moves import range  # pylint: disable=ungrouped-imports
 
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from xmodule.modulestore.django import modulestore
+
+from openedx.core.lib.celery import APP
 
 log = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ def enqueue_async_course_overview_update_tasks(
         )
 
 
-@task(base=LoggedPersistOnFailureTask)
+@APP.task(base=LoggedPersistOnFailureTask)
 @set_code_owner_attribute
 def async_course_overview_update(*args, **kwargs):
     course_keys = [CourseKey.from_string(arg) for arg in args]

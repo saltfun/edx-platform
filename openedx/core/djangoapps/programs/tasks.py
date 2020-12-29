@@ -3,7 +3,6 @@ This file contains celery tasks for programs-related functionality.
 """
 
 
-from celery import task
 from celery.exceptions import MaxRetriesExceededError
 from celery.utils.log import get_task_logger
 from django.conf import settings
@@ -21,6 +20,7 @@ from openedx.core.djangoapps.credentials.models import CredentialsApiConfig
 from openedx.core.djangoapps.credentials.utils import get_credentials, get_credentials_api_client
 from openedx.core.djangoapps.programs.utils import ProgramProgressMeter
 from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
+from openedx.core.lib.celery import APP
 
 LOGGER = get_task_logger(__name__)
 # Maximum number of retries before giving up on awarding credentials.
@@ -121,7 +121,7 @@ def award_program_certificate(client, username, program_uuid, visible_date):
     })
 
 
-@task(bind=True, ignore_result=True)
+@APP.task(bind=True, ignore_result=True)
 @set_code_owner_attribute
 def award_program_certificates(self, username):
     """
@@ -284,7 +284,7 @@ def post_course_certificate(client, username, certificate, visible_date):
     })
 
 
-@task(bind=True, ignore_result=True)
+@APP.task(bind=True, ignore_result=True)
 @set_code_owner_attribute
 def award_course_certificate(self, username, course_run_key):
     """
@@ -399,7 +399,7 @@ def revoke_program_certificate(client, username, program_uuid):
     })
 
 
-@task(bind=True, ignore_result=True)
+@APP.task(bind=True, ignore_result=True)
 @set_code_owner_attribute
 def revoke_program_certificates(self, username, course_key):
     """
@@ -523,7 +523,7 @@ def revoke_program_certificates(self, username, course_key):
     LOGGER.info(u'Successfully completed the task revoke_program_certificates for username %s', username)
 
 
-@task(bind=True, ignore_result=True)
+@APP.task(bind=True, ignore_result=True)
 @set_code_owner_attribute
 def update_certificate_visible_date_on_course_update(self, course_key):
     """

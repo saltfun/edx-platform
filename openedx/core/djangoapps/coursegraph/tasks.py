@@ -6,7 +6,6 @@ neo4j, a graph database.
 
 import logging
 
-from celery import task
 from django.conf import settings
 from django.utils import six, timezone
 from edx_django_utils.cache import RequestCache
@@ -15,6 +14,7 @@ from opaque_keys.edx.keys import CourseKey
 from py2neo import Graph, Node, Relationship, authenticate, NodeSelector
 from py2neo.compat import integer, string
 
+from openedx.core.lib.celery import APP
 
 log = logging.getLogger(__name__)
 celery_log = logging.getLogger('edx.celery.task')
@@ -247,7 +247,7 @@ def should_dump_course(course_key, graph):
     return last_this_command_was_run < course_last_published_date
 
 
-@task
+@APP.task
 @set_code_owner_attribute
 def dump_course_to_neo4j(course_key_string, credentials):
     """

@@ -5,7 +5,7 @@ import logging
 import six
 from six.moves import range
 
-from celery import task, current_app
+from celery import current_app
 from celery_utils.logged_task import LoggedTask
 from celery_utils.persist_on_failure import LoggedPersistOnFailureTask
 from django.conf import settings
@@ -27,6 +27,7 @@ from opaque_keys.edx.keys import CourseKey
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from openedx.core.djangoapps.schedules import message_types, resolvers
 from openedx.core.djangoapps.schedules.models import Schedule, ScheduleConfig
+from openedx.core.lib.celery import APP
 from openedx.core.lib.celery.task_utils import emulate_http_request
 from common.djangoapps.track import segment
 
@@ -46,7 +47,7 @@ COURSE_UPDATE_LOG_PREFIX = 'Course Update'
 COURSE_NEXT_SECTION_UPDATE_LOG_PREFIX = 'Course Next Section Update'
 
 
-@task(base=LoggedPersistOnFailureTask, bind=True, default_retry_delay=30)
+@APP.task(base=LoggedPersistOnFailureTask, bind=True, default_retry_delay=30)
 @set_code_owner_attribute
 def update_course_schedules(self, **kwargs):
     course_key = CourseKey.from_string(kwargs['course_id'])
@@ -150,7 +151,7 @@ class BinnedScheduleMessageBaseTask(ScheduleMessageBaseTask):
         raise NotImplementedError
 
 
-@task(base=LoggedTask, ignore_result=True)
+@APP.task(base=LoggedTask, ignore_result=True)
 @set_code_owner_attribute
 def _recurring_nudge_schedule_send(site_id, msg_str):
     _schedule_send(
@@ -161,7 +162,7 @@ def _recurring_nudge_schedule_send(site_id, msg_str):
     )
 
 
-@task(base=LoggedTask, ignore_result=True)
+@APP.task(base=LoggedTask, ignore_result=True)
 @set_code_owner_attribute
 def _upgrade_reminder_schedule_send(site_id, msg_str):
     _schedule_send(
@@ -172,7 +173,7 @@ def _upgrade_reminder_schedule_send(site_id, msg_str):
     )
 
 
-@task(base=LoggedTask, ignore_result=True)
+@APP.task(base=LoggedTask, ignore_result=True)
 @set_code_owner_attribute
 def _course_update_schedule_send(site_id, msg_str):
     _schedule_send(
