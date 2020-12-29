@@ -138,4 +138,4 @@ sympy==1.6.2
 cryptography==3.2.1
 
 # greater versions breaking the code
-sphinx==3.3.3
+Sphinx==3.3.0
